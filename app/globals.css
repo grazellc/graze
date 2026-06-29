@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0f0d0b;
+  --ink2: #3d3830;
+  --ink3: #7a7268;
+  --ink4: #b5aca0;
+  --ink5: #d8d0c8;
+  --paper: #faf8f5;
+  --paper2: #f3ede5;
+  --paper3: #e9e0d6;
+  --warm: #c8411a;
+  --warm2: #e8602e;
+  --warm-s: rgba(200,65,26,.10);
+  --sage: #3c6040;
+  --sage2: #4d7a53;
+  --sage-s: rgba(60,96,64,.10);
+  --gold: #b5861a;
+  --gold-s: rgba(181,134,26,.10);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--paper3); border-radius: 4px; }
+
+@keyframes fadeUp   { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
+@keyframes fadeIn   { from { opacity:0 } to { opacity:1 } }
+@keyframes shimmer  { 0% { background-position:-200% 0 } 100% { background-position:200% 0 } }
+@keyframes spin     { to { transform: rotate(360deg) } }
+
+.afu  { animation: fadeUp  .4s cubic-bezier(.22,1,.36,1) both }
+.afi  { animation: fadeIn  .25s ease both }
+.s1 { animation-delay:.04s } .s2 { animation-delay:.08s } .s3 { animation-delay:.12s }
+.s4 { animation-delay:.16s } .s5 { animation-delay:.20s } .s6 { animation-delay:.24s }
+.s7 { animation-delay:.28s } .s8 { animation-delay:.32s }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--paper2) 25%, var(--paper3) 50%, var(--paper2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.spin { animation: spin 1s linear infinite; }
