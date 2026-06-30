@@ -47,6 +47,17 @@ function backfill(lists: GrazeList[], geoByCid: Map<string, GeoInfo>): number {
   return n
 }
 
+function csvToList(filename: string, content: string, source: ImportSource): GrazeList | null {
+  const listName = filename.replace(/\.csv$/i, '')
+  const places = parseCSVToPlaces(listName, content, source)
+  if (!places.length) return null
+  return {
+    id: crypto.randomUUID(), name: listName, color: colorForName(listName),
+    places, sourceFile: filename, source,
+    createdAt: new Date().toISOString(), city: detectCity(listName),
+  }
+}
+
 function geojsonToList(name: string, gj: any, source: ImportSource): GrazeList | null {
   const places = parseDPGeoJSON(name, gj, source)
   if (!places.length) return null
@@ -131,4 +142,35 @@ export async function parseGeoJSONBuffer(
   if (!gj.features) throw new Error('That JSON isn’t a Google Maps places export')
   const list = geojsonToList('⭐ Starred places', gj, source)
   return { lists: list ? [list] : [], skipped: [], backfilled: 0 }
+}
+
+// ── Loose files (a dropped Takeout FOLDER, after Mac auto-unzip) ──
+export async function parseLooseFiles(
+  files: { name: string; buffer: Buffer }[],
+  source: ImportSource = 'google_takeout_zip'
+): Promise<{ lists: GrazeList[]; skipped: string[]; backfilled: number }> {
+  const lists: GrazeList[] = []
+  const skipped: string[] = []
+  const collections: any[] = []
+
+  for (const f of files) {
+    const lower = f.name.toLowerCase()
+    if (lower.endsWith('.csv')) {
+      const list = csvToList(f.name, f.buffer.toString('utf-8'), source)
+      if (list) lists.push(list); else skipped.push(f.name)
+    } else if (lower.endsWith('.json')) {
+      try {
+        const gj = JSON.parse(f.buffer.toString('utf-8'))
+        if (gj.features) {
+          collections.push(gj)
+          const list = geojsonToList(prettyGeoName(f.name), gj, source)
+          if (list) lists.push(list)
+        }
+      } catch { skipped.push(f.name) }
+    }
+  }
+
+  const backfilled = backfill(lists, indexGeoByCid(collections))
+  lists.sort((a, b) => b.places.length - a.places.length || a.name.localeCompare(b.name))
+  return { lists, skipped, backfilled }
 }

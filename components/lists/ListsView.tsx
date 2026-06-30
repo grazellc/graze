@@ -23,7 +23,7 @@ interface Props {
 }
 
 export function ListsView({ list, onImport, onAddPlace, onPlaceClick }: Props) {
-  const { lists, searchQuery, setSearchQuery, dietFilter, visitedFilter } = useStore()
+  const { lists, searchQuery, setSearchQuery, dietFilter, setDietFilter, visitedFilter } = useStore()
   const [sortBy, setSortBy] = useState<'score'|'rating'|'name'>('score')
 
   // ── All-lists search across everything ─────────────────────
@@ -73,16 +73,25 @@ export function ListsView({ list, onImport, onAddPlace, onPlaceClick }: Props) {
         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, fontWeight: 400, fontStyle: 'italic', marginBottom: 8 }}>
           Your places, everywhere
         </div>
-        <div style={{ fontSize: 14, color: 'var(--ink3)', lineHeight: 1.6, maxWidth: 320, marginBottom: 24 }}>
-          Connect Google Maps to import all your saved lists automatically — photos, ratings, menus and AI recommendations included.
+        <div style={{ fontSize: 14, color: 'var(--ink3)', lineHeight: 1.6, maxWidth: 340, marginBottom: 24 }}>
+          Bring in your Google Maps saved lists, then keep them organised, searchable, and tagged in one place. Takes about 2 minutes — or add a place by hand to look around first.
         </div>
-        <button onClick={onImport} style={{
-          padding: '12px 24px', background: 'var(--warm)', color: '#fff',
-          border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 500,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>
-          Get started →
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={onImport} style={{
+            padding: '12px 24px', background: 'var(--warm)', color: '#fff',
+            border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 500,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            Import from Google Maps →
+          </button>
+          <button onClick={onAddPlace} style={{
+            padding: '12px 20px', background: '#fff', color: 'var(--ink2)',
+            border: '1.5px solid var(--paper3)', borderRadius: 12, fontSize: 14,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            Add a place
+          </button>
+        </div>
       </div>
     )
   }
@@ -147,6 +156,14 @@ export function ListsView({ list, onImport, onAddPlace, onPlaceClick }: Props) {
             {v === 'all' ? 'All' : v === 'unvisited' ? '📍 To visit' : '✓ Visited'}
           </PillBtn>
         ))}
+
+        {/* Veg toggle — always available */}
+        <PillBtn
+          active={dietFilter === 'vegetarian'}
+          onClick={() => setDietFilter(dietFilter === 'vegetarian' ? 'all' : 'vegetarian')}
+        >
+          🌱 Veg
+        </PillBtn>
 
         {/* Sort */}
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
@@ -221,6 +238,15 @@ export function ListsView({ list, onImport, onAddPlace, onPlaceClick }: Props) {
                 </div>
               ))}
             </div>
+
+            {/* Veg filter on, but no enrichment yet */}
+            {dietFilter === 'vegetarian' && places.length === 0 && (
+              <div style={{ margin: '0 26px 26px', padding: '18px 20px', background: 'var(--paper2)', borderRadius: 14, fontSize: 13, color: 'var(--ink3)', lineHeight: 1.5 }}>
+                🌱 <strong>Veg filter is on.</strong> We don’t know yet which of these are vegetarian-friendly —
+                that gets tagged once place details are enriched (menus, ratings, photos). For now, tap
+                <strong> All</strong> to see everything.
+              </div>
+            )}
 
             {/* To visit */}
             {toVisit.length > 0 && (

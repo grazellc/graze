@@ -1,35 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { parseZipBuffer, parseGeoJSONBuffer } from '@/lib/parse-zip.server'
+import { parseZipBuffer, parseGeoJSONBuffer, parseLooseFiles } from '@/lib/parse-zip.server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 /**
  * POST /api/import
- * Multipart: file = ZIP (Takeout) or .json (Maps your places GeoJSON)
+ * Accepts (multipart):
+ *   - file:  a single .zip (Takeout) or .json (Maps your places)
+ *   - files: many .csv/.json (a dropped Takeout FOLDER after Mac auto-unzip)
  */
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
-    const file = formData.get('file') as File | null
-    if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
-
-    const name = file.name.toLowerCase()
-    const buffer = Buffer.from(await file.arrayBuffer())
+    const many = formData.getAll('files').filter(Boolean) as File[]
+    const single = formData.get('file') as File | null
+    const incoming = many.length ? many : (single ? [single] : [])
+    if (!incoming.length) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
 
     let result
-    if (name.endsWith('.json')) {
-      result = await parseGeoJSONBuffer(buffer, 'google_takeout_zip')
-    } else if (name.endsWith('.zip') || file.type === 'application/zip') {
-      result = await parseZipBuffer(buffer, 'google_takeout_zip')
+
+    if (incoming.length === 1) {
+      const f = incoming[0]
+      const name = f.name.toLowerCase()
+      const buffer = Buffer.from(await f.arrayBuffer())
+      if (name.endsWith('.json')) result = await parseGeoJSONBuffer(buffer, 'google_takeout_zip')
+      else if (name.endsWith('.zip') || f.type === 'application/zip') result = await parseZipBuffer(buffer, 'google_takeout_zip')
+      else if (name.endsWith('.csv')) result = await parseLooseFiles([{ name: f.name, buffer }])
+      else return NextResponse.json({ error: 'Upload the Takeout .zip, the unzipped folder, or a Saved Places .json' }, { status: 400 })
     } else {
-      return NextResponse.json({ error: 'Please upload the .zip from Google Takeout (or a Saved Places .json)' }, { status: 400 })
+      // A folder's worth of loose files
+      const loose = await Promise.all(
+        incoming
+          .filter(f => /\.(csv|json)$/i.test(f.name))
+          .map(async f => ({ name: f.name, buffer: Buffer.from(await f.arrayBuffer()) }))
+      )
+      result = await parseLooseFiles(loose)
     }
 
     const { lists, skipped, backfilled } = result
     if (!lists.length) {
       return NextResponse.json({
-        error: "Couldn't find saved places in this file. Make sure you selected “Saved” (and optionally “Maps (your places)”) in Takeout.",
+        error: "Couldn't find saved places in this. Make sure you selected “Saved” (and optionally “Maps (your places)”) in Takeout.",
       }, { status: 422 })
     }
 
@@ -37,8 +49,7 @@ export async function POST(req: NextRequest) {
       lists,
       totalPlaces: lists.reduce((s, l) => s + l.places.length, 0),
       listsCount: lists.length,
-      skipped,
-      backfilled,
+      skipped, backfilled,
     })
   } catch (err) {
     console.error('Import error:', err)

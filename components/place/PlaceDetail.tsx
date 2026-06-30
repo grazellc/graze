@@ -11,31 +11,8 @@ interface Props {
   onClose: () => void
 }
 
-type MenuTab = 'veg' | 'all'
-
-const VEG_MENU = [
-  { name: 'Margherita', price: '$21', isVeg: true },
-  { name: 'Bee Sting — honey, chilli', price: '$24', isVeg: true },
-  { name: 'Maria — olive oil, garlic, basil', price: '$19', isVeg: true },
-  { name: 'Cheese & Antipasto Board', price: '$18', isVeg: true },
-]
-const FULL_MENU = [
-  ...VEG_MENU,
-  { name: 'Speck — prosciutto, arugula', price: '$26', isVeg: false },
-  { name: 'Calabrese — sausage, peppers', price: '$25', isVeg: false },
-  { name: 'Clam — white pizza', price: '$23', isVeg: false },
-]
-
-const SOURCES = [
-  { emoji: '🌍', name: '50 Best Pizzerias — World', rank: '#12' },
-  { emoji: '🇺🇸', name: "Eater America's Best", rank: '#4' },
-  { emoji: '📰', name: 'NY Times Dining', rank: 'Essential' },
-  { emoji: '🔴', name: 'The Infatuation', rank: '9/10' },
-]
-
 export function PlaceDetail({ place, list, onClose }: Props) {
   const { markVisited, updateNote } = useStore()
-  const [menuTab, setMenuTab] = useState<MenuTab>('veg')
   const [note, setNote] = useState(place.userNote || '')
   const [isVisited, setIsVisited] = useState(place.visited)
   const [visible, setVisible] = useState(false)
@@ -64,11 +41,10 @@ export function PlaceDetail({ place, list, onClose }: Props) {
   }
 
   const user = useStore(s => s.user)
-  const isVegUser = user?.diet?.includes('vegetarian') || user?.diet?.includes('vegan')
-  const defaultTab = isVegUser ? 'veg' : 'all'
 
-  const menu = menuTab === 'veg' ? VEG_MENU : FULL_MENU
-  const sources = place.verifiedSources?.length ? place.verifiedSources.map(s => ({ emoji: s.emoji, name: s.name, rank: s.rank })) : SOURCES
+  const realSources = place.verifiedSources?.length
+    ? place.verifiedSources.map(s => ({ emoji: s.emoji, name: s.name, rank: s.rank }))
+    : []
 
   return (
     <>
@@ -174,51 +150,32 @@ export function PlaceDetail({ place, list, onClose }: Props) {
             ))}
           </div>
 
-          {/* Menu */}
+          {/* Menu — real data only (added during enrichment) */}
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 11, fontFamily: 'Syne, sans-serif' }}>
               Menu
             </div>
-            {(place.isVegFriendly || true) && (
-              <div style={{ display: 'flex', background: 'var(--paper2)', borderRadius: 10, padding: 3, gap: 3, marginBottom: 13 }}>
-                {(['veg', 'all'] as MenuTab[]).map(tab => (
-                  <button key={tab} onClick={() => setMenuTab(tab)} style={{
-                    flex: 1, padding: 7, borderRadius: 8, border: 'none',
-                    background: menuTab === tab ? '#fff' : 'transparent',
-                    color: menuTab === tab ? 'var(--ink)' : 'var(--ink3)',
-                    fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                    fontFamily: 'Syne, sans-serif', transition: 'all .15s',
-                    boxShadow: menuTab === tab ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
-                  }}>
-                    {tab === 'veg' ? '🌿 Vegetarian' : 'Full menu'}
-                  </button>
-                ))}
-              </div>
-            )}
-            {menu.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 0', borderBottom: i < menu.length-1 ? '1px solid var(--paper3)' : 'none', fontSize: 13 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, border: `1.5px solid ${item.isVeg ? 'var(--sage)' : '#c0392b'}`, flexShrink: 0, position: 'relative' }}>
-                  <div style={{ position: 'absolute', inset: 2, background: item.isVeg ? 'var(--sage)' : '#c0392b', borderRadius: 1 }} />
-                </div>
-                <span style={{ flex: 1 }}>{item.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--ink4)', fontWeight: 500 }}>{item.price}</span>
-              </div>
-            ))}
+            <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '12px 14px', background: 'var(--paper2)', borderRadius: 10, fontSize: 12.5, color: 'var(--ink3)', lineHeight: 1.5 }}>
+              <span>🍽️</span>
+              <span>Menus & dishes show up here once this place is enriched with live details. Not pulled in yet.</span>
+            </div>
           </div>
 
-          {/* Sources */}
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 11, fontFamily: 'Syne, sans-serif' }}>
-              Cross-verified from
-            </div>
-            {sources.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0', borderBottom: i < sources.length-1 ? '1px solid var(--paper3)' : 'none', fontSize: 12.5 }}>
-                <span>{s.emoji}</span>
-                <span style={{ flex: 1, color: 'var(--ink2)' }}>{s.name}</span>
-                <span style={{ fontWeight: 600, color: 'var(--warm)', fontFamily: 'Syne, sans-serif', fontSize: 12 }}>{s.rank}</span>
+          {/* Cross-verified rankings — only if we actually have them */}
+          {realSources.length > 0 && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 11, fontFamily: 'Syne, sans-serif' }}>
+                Cross-verified from
               </div>
-            ))}
-          </div>
+              {realSources.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0', borderBottom: i < realSources.length-1 ? '1px solid var(--paper3)' : 'none', fontSize: 12.5 }}>
+                  <span>{s.emoji}</span>
+                  <span style={{ flex: 1, color: 'var(--ink2)' }}>{s.name}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--warm)', fontFamily: 'Syne, sans-serif', fontSize: 12 }}>{s.rank}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Note */}
           <div style={{ marginBottom: 22 }}>

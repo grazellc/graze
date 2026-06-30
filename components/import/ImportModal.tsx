@@ -4,19 +4,17 @@ import { useStore } from '@/store'
 import type { GrazeList } from '@/types'
 import { X, Upload, CheckCircle, AlertCircle, Loader, ExternalLink, ArrowRight } from 'lucide-react'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; initialStep?: 'intro' | 'drop' }
 
 type Step = 'intro' | 'takeout' | 'drop' | 'parsing' | 'done' | 'error'
 
-// Pre-selects the two products that matter: "Saved" (your lists) +
-// "Maps (your places)" (starred places, which carry map locations).
-// If Google ignores pre-selection, the on-screen steps cover it manually.
+// Deep link pre-selecting ONLY "Saved" (your lists). One box = fewer steps.
 const TAKEOUT_URL =
-  'https://takeout.google.com/settings/takeout/custom/saved,maps_my_places'
+  'https://takeout.google.com/settings/takeout/custom/saved'
 
-export function ImportModal({ onClose }: Props) {
-  const { lists, mergeLists } = useStore()
-  const [step, setStep] = useState<Step>('intro')
+export function ImportModal({ onClose, initialStep = 'intro' }: Props) {
+  const { lists, mergeLists, setImportPending } = useStore()
+  const [step, setStep] = useState<Step>(initialStep)
   const [foundLists, setFoundLists] = useState<GrazeList[]>([])
   const [newCount, setNewCount] = useState(0)
   const [error, setError] = useState('')
@@ -24,6 +22,7 @@ export function ImportModal({ onClose }: Props) {
   const [dragging, setDragging] = useState(false)
   const [phase, setPhase] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const folderRef = useRef<HTMLInputElement>(null)
   const [isMobile] = useState(
     () => typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   )
@@ -31,31 +30,65 @@ export function ImportModal({ onClose }: Props) {
   const isExistingUser = lists.length > 0
 
   function openTakeout() {
+    setImportPending(true)
     window.open(TAKEOUT_URL, '_blank', 'noopener')
     setStep('drop')
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    const file = e.dataTransfer.files[0]
-    const n = file?.name.toLowerCase() || ''
-    if (n.endsWith('.zip') || n.endsWith('.json')) parseZip(file)
-    else { setError('That doesn’t look right. Drop the .zip Google emailed you (or a Saved Places .json).'); setStep('error') }
+  // Recursively pull File objects out of a dropped directory entry
+  async function readEntry(entry: any, out: File[]) {
+    if (!entry) return
+    if (entry.isFile) {
+      await new Promise<void>(res => entry.file((f: File) => { out.push(f); res() }, () => res()))
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader()
+      const readBatch = (): Promise<void> => new Promise(res => {
+        reader.readEntries(async (ents: any[]) => {
+          if (!ents.length) return res()
+          for (const e of ents) await readEntry(e, out)
+          res(await readBatch())
+        }, () => res())
+      })
+      await readBatch()
+    }
   }
 
-  async function parseZip(file: File) {
-    setZipFile(file)
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    const items = Array.from(e.dataTransfer.items || [])
+    const entries = items.map(it => (it as any).webkitGetAsEntry?.()).filter(Boolean)
+    const out: File[] = []
+    if (entries.length) { for (const en of entries) await readEntry(en, out) }
+    else { for (const f of Array.from(e.dataTransfer.files || [])) out.push(f) }
+    ingest(out)
+  }
+
+  // Decide how to send what was dropped/picked: a zip, a json, or a folder of csv/json
+  function ingest(files: File[]) {
+    const relevant = files.filter(f => /\.(zip|json|csv)$/i.test(f.name))
+    if (!relevant.length) {
+      setError('That doesn’t look right. Drop the Takeout .zip, the unzipped folder, or a Saved Places .json.')
+      setStep('error'); return
+    }
+    const zip = relevant.find(f => /\.zip$/i.test(f.name))
+    upload(zip ? [zip] : relevant)
+  }
+
+  async function upload(files: File[]) {
+    setZipFile(files.length === 1 ? files[0] : null)
     setStep('parsing')
-    setPhase('Reading your export…')
+    setPhase(files.length > 1 ? `Reading ${files.length} files from your folder…` : 'Reading your export…')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      if (files.length === 1) fd.append('file', files[0])
+      else files.forEach(f => fd.append('files', f))
       setPhase('Extracting your lists & places…')
       const res = await fetch('/api/import', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Import failed'); setStep('error'); return }
       const added = mergeLists(data.lists)
+      setImportPending(false)
       setFoundLists(data.lists)
       setNewCount(added)
       setStep('done')
@@ -98,7 +131,7 @@ export function ImportModal({ onClose }: Props) {
                 </div>
 
                 <div style={gStep}><span style={stepNum}>2</span>
-                  <span style={gText}>Scroll down and check <strong>these two</strong> (they look exactly like this):</span>
+                  <span style={gText}>Scroll down and check <strong>one box</strong> — it looks exactly like this:</span>
                 </div>
                 <div style={gPick}>
                   <div style={realRow}>
@@ -106,22 +139,17 @@ export function ImportModal({ onClose }: Props) {
                     <div style={{ flex: 1 }}>
                       <div style={realName}>Saved</div>
                       <div style={realDesc}>Collections of saved links… from Google Search and Maps</div>
-                      <div style={realTag}>your 91 lists · in the “S” section</div>
-                    </div>
-                    <span style={realCheck}>✓</span>
-                  </div>
-                  <div style={realRow}>
-                    <span style={realIcon}>📍</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={realName}>Maps (your places)</div>
-                      <div style={realDesc}>Records of your starred places and place reviews</div>
-                      <div style={realTag}>adds map locations · in the “M” section</div>
+                      <div style={realTag}>all your lists · in the “S” section</div>
                     </div>
                     <span style={realCheck}>✓</span>
                   </div>
                   <div style={warnRow}>
                     <span style={{ fontSize: 13 }}>⚠️</span>
-                    <span><strong>Don’t</strong> check plain <strong>“Maps”</strong> — it’s a different box and makes the export fail.</span>
+                    <span><strong>Don’t</strong> check plain <strong>“Maps”</strong> — different box, and it makes the export fail.</span>
+                  </div>
+                  <div style={optRow}>
+                    <span style={{ fontSize: 12 }}>✨</span>
+                    <span><strong>Optional:</strong> also tick <strong>“Maps (your places)”</strong> to drop your starred spots on a map too.</span>
                   </div>
                 </div>
 
@@ -207,38 +235,51 @@ export function ImportModal({ onClose }: Props) {
           {step === 'drop' && (
             <>
               <h2 style={title}>Add your Takeout file</h2>
+              <div style={reassure}>
+                <span style={{ fontSize: 14 }}>⏳</span>
+                <span>Google emails you the file in <strong>1–2 minutes</strong>. When it lands, open it → <strong>Manage Google Takeout request</strong> → <strong>Download</strong>, then come back and drop it here. We saved your place — this screen waits for you.</span>
+              </div>
               <p style={sub}>
                 {isMobile
-                  ? <>Tap below and pick the file Google gave you — it’s a <strong>.zip</strong> (or a Saved Places <strong>.json</strong>), usually in <em>Files → Downloads</em>.</>
-                  : <>Drag in the <strong>.zip</strong> Google emailed you (or a Saved Places <strong>.json</strong>) — or click to browse.</>}
+                  ? <>Tap below and pick the file Google gave you — a <strong>.zip</strong> (or a Saved Places <strong>.json</strong>), usually in <em>Files → Downloads</em>.</>
+                  : <>Drag in the <strong>.zip</strong> — or, if your Mac already unzipped it, drag the whole <strong>folder</strong>. A Saved Places <strong>.json</strong> works too.</>}
               </p>
 
-              <input ref={fileRef} type="file" accept=".zip,.json,application/zip,application/json" style={{ display: 'none' }}
-                onChange={e => { const f = e.target.files?.[0]; if (f) parseZip(f) }} />
+              {/* file picker (zip / json / csv) */}
+              <input ref={fileRef} type="file" accept=".zip,.json,.csv,application/zip,application/json" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) ingest([f]) }} />
+              {/* folder picker (the Mac auto-unzipped folder) */}
+              <input ref={folderRef} type="file" {...{ webkitdirectory: '', directory: '' } as any} style={{ display: 'none' }}
+                onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) ingest(fs) }} />
 
               {isMobile ? (
                 <button onClick={() => fileRef.current?.click()} style={{ ...primaryBtn, padding: '16px', fontSize: 15 }}>
                   <Upload size={18} /> Choose file
                 </button>
               ) : (
-                <div
-                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileRef.current?.click()}
-                  style={{
-                    border: `2px dashed ${dragging ? 'var(--warm)' : 'var(--paper3)'}`,
-                    borderRadius: 14, padding: '40px 20px', textAlign: 'center',
-                    cursor: 'pointer', transition: 'all .2s', marginBottom: 16,
-                    background: dragging ? 'var(--warm-s)' : 'var(--paper2)',
-                  }}
-                >
-                  <Upload size={26} style={{ color: 'var(--ink4)', marginBottom: 10 }} />
-                  <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
-                    {dragging ? 'Drop to import' : 'Drop your file here'}
+                <>
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileRef.current?.click()}
+                    style={{
+                      border: `2px dashed ${dragging ? 'var(--warm)' : 'var(--paper3)'}`,
+                      borderRadius: 14, padding: '36px 20px', textAlign: 'center',
+                      cursor: 'pointer', transition: 'all .2s', marginBottom: 12,
+                      background: dragging ? 'var(--warm-s)' : 'var(--paper2)',
+                    }}
+                  >
+                    <Upload size={26} style={{ color: 'var(--ink4)', marginBottom: 10 }} />
+                    <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+                      {dragging ? 'Drop to import' : 'Drop your file or folder here'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink4)' }}>or click to browse for the .zip / .json</div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink4)' }}>or click to browse — .zip or .json</div>
-                </div>
+                  <button onClick={() => folderRef.current?.click()} style={{ ...textBtn, marginTop: 0 }}>
+                    Mac unzipped it into a folder? Select the folder instead →
+                  </button>
+                </>
               )}
 
               <button onClick={() => setStep('intro')} style={textBtn}>← Back to the steps</button>
@@ -379,6 +420,14 @@ const realCheck: React.CSSProperties = {
 const warnRow: React.CSSProperties = {
   display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 11.5, color: 'var(--ink2)', lineHeight: 1.4,
   background: 'var(--warm-s)', borderRadius: 8, padding: '8px 10px', marginTop: 2,
+}
+const optRow: React.CSSProperties = {
+  display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 11.5, color: 'var(--ink3)', lineHeight: 1.4,
+  borderRadius: 8, padding: '6px 10px', marginTop: 2,
+}
+const reassure: React.CSSProperties = {
+  display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink2)', lineHeight: 1.5,
+  background: 'var(--sage-s)', borderRadius: 11, padding: '12px 14px', marginBottom: 14,
 }
 const noteBox: React.CSSProperties = {
   background: 'var(--sage-s)', border: '1px solid rgba(60,96,64,.18)', borderRadius: 10,

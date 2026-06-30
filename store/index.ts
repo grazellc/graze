@@ -32,6 +32,8 @@ interface GrazeStore {
   setActiveView: (v: GrazeStore['activeView']) => void
   searchQuery: string
   setSearchQuery: (q: string) => void
+  importPending: boolean
+  setImportPending: (v: boolean) => void
   dietFilter: DietType | 'all'
   setDietFilter: (d: DietType | 'all') => void
   visitedFilter: 'all' | 'unvisited' | 'visited'
@@ -117,6 +119,8 @@ export const useStore = create<GrazeStore>()(
       setActiveView: (v) => set({ activeView: v }),
       searchQuery: '',
       setSearchQuery: (q) => set({ searchQuery: q }),
+      importPending: false,
+      setImportPending: (v) => set({ importPending: v }),
       dietFilter: 'all',
       setDietFilter: (d) => set({ dietFilter: d }),
       visitedFilter: 'all',
@@ -124,7 +128,7 @@ export const useStore = create<GrazeStore>()(
     }),
     {
       name: 'graze-v1',
-      partialize: (s) => ({ user: s.user, lists: s.lists }),
+      partialize: (s) => ({ user: s.user, lists: s.lists, importPending: s.importPending }),
     }
   )
 )

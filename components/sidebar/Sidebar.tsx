@@ -1,11 +1,14 @@
 'use client'
+import { useState } from 'react'
 import { useStore } from '@/store'
-import { Grid3X3, MapPin, Compass, User, Plus, RefreshCw } from 'lucide-react'
+import { Grid3X3, MapPin, Compass, User, Plus, RefreshCw, Search } from 'lucide-react'
 
 interface Props { onImport: () => void }
 
 export function Sidebar({ onImport }: Props) {
   const { lists, activeListId, activeView, setActiveList, setActiveView } = useStore()
+  const [q, setQ] = useState('')
+  const shown = q.trim() ? lists.filter(l => l.name.toLowerCase().includes(q.trim().toLowerCase())) : lists
   const totalPlaces = lists.reduce((s, l) => s + l.places.length, 0)
   const totalVisited = lists.reduce((s, l) => s + l.places.filter(p => p.visited).length, 0)
 
@@ -115,8 +118,20 @@ export function Sidebar({ onImport }: Props) {
               <RefreshCw size={11} /> Sync
             </button>
           </div>
+          {lists.length > 8 && (
+            <div style={{ padding: '2px 16px 6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--paper2)', borderRadius: 8, padding: '6px 10px' }}>
+                <Search size={12} style={{ color: 'var(--ink4)', flexShrink: 0 }} />
+                <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search lists…"
+                  style={{ border: 'none', outline: 'none', background: 'none', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--ink)', width: '100%' }} />
+              </div>
+            </div>
+          )}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 8px', scrollbarWidth: 'none' }}>
-            {lists.map(list => {
+            {shown.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--ink4)', padding: '10px 12px' }}>No lists match “{q}”.</div>
+            )}
+            {shown.map(list => {
               const isActive = activeListId === list.id
               const visited = list.places.filter(p => p.visited).length
               return (
