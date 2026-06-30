@@ -54,6 +54,20 @@ function parseRow(row: string): string[] {
 
 // Extract Google's embedded feature id (e.g. 0x3be7cf...:0x35eed3...) or cid
 // from a Takeout maps URL. Used later to resolve a Places API place_id.
+// Convert a Takeout feature id "0xAAAA:0xBBBB" to its decimal CID (the BBBB part).
+// This bridges CSV list places to GeoJSON coordinates (which key on decimal cid).
+export function cidFromFeatureId(featureId?: string): string | undefined {
+  if (!featureId) return undefined
+  const m = featureId.match(/0x[0-9a-fA-F]+:0x([0-9a-fA-F]+)/)
+  if (!m) return undefined
+  try { return BigInt('0x' + m[1]).toString(10) } catch { return undefined }
+}
+export function cidFromUrl(url?: string): string | undefined {
+  if (!url) return undefined
+  const m = url.match(/[?&]cid=(\d+)/)
+  return m ? m[1] : undefined
+}
+
 export function extractMapFeatureId(url?: string): string | undefined {
   if (!url) return undefined
   const m = url.match(/1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)/)
