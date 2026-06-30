@@ -178,6 +178,50 @@ export function diffLists(
   return { merged, newCount }
 }
 
+// ── Open in external maps (no API key needed) ────────────────
+export function googleMapsLink(p: { name: string; googleMapsUrl?: string; address?: string }): string {
+  if (p.googleMapsUrl) return p.googleMapsUrl
+  const q = encodeURIComponent([p.name, p.address].filter(Boolean).join(' '))
+  return `https://www.google.com/maps/search/?api=1&query=${q}`
+}
+export function appleMapsLink(p: { name: string; address?: string }): string {
+  const q = encodeURIComponent([p.name, p.address].filter(Boolean).join(' '))
+  return `https://maps.apple.com/?q=${q}`
+}
+
+// ── Export a list to CSV / GPX (for My Maps import) ──────────
+export function listToCSV(list: GrazeList): string {
+  const esc = (s = '') => `"${String(s).replace(/"/g, '""')}"`
+  const rows = [['Name', 'Note', 'Visited', 'Google Maps URL'].join(',')]
+  for (const p of list.places) {
+    rows.push([
+      esc(p.name), esc(p.userNote || ''),
+      p.visited ? 'yes' : 'no', esc(p.googleMapsUrl || ''),
+    ].join(','))
+  }
+  return rows.join('\n')
+}
+export function listToGPX(list: GrazeList): string {
+  const esc = (s = '') => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] || c))
+  const pts = list.places
+    .filter(p => p.lat != null && p.lng != null)
+    .map(p => `  <wpt lat="${p.lat}" lon="${p.lng}"><name>${esc(p.name)}</name>${p.userNote ? `<desc>${esc(p.userNote)}</desc>` : ''}</wpt>`)
+    .join('\n')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Graze" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>${esc(list.name)}</name></metadata>
+${pts}
+</gpx>`
+}
+export function downloadFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 // ── Formatting helpers ────────────────────────────────────────
 export function priceStr(n?: number) { return '$'.repeat(n || 2) }
 export function ratingStars(r?: number) {

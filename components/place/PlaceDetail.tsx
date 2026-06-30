@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '@/store'
 import type { Place, GrazeList } from '@/types'
-import { X, MapPin, CheckCircle, Share2, Star, Navigation, Phone, Globe, Clock } from 'lucide-react'
-import { priceStr, ratingStars } from '@/lib/utils'
+import { X, MapPin, CheckCircle, Star, Navigation, Phone, Globe, Clock } from 'lucide-react'
+import { priceStr, ratingStars, googleMapsLink, appleMapsLink } from '@/lib/utils'
 
 interface Props {
   place: Place
@@ -155,9 +155,9 @@ export function PlaceDetail({ place, list, onClose }: Props) {
           {/* Actions */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7, marginBottom: 22 }}>
             {[
-              { label: 'Directions', icon: Navigation, primary: true, onClick: () => window.open(place.googleMapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(place.name)}`, '_blank') },
+              { label: 'Google Maps', icon: Navigation, primary: true, onClick: () => window.open(googleMapsLink(place), '_blank') },
+              { label: 'Apple Maps', icon: MapPin, onClick: () => window.open(appleMapsLink(place), '_blank') },
               { label: isVisited ? 'Visited ✓' : 'Mark visited', icon: CheckCircle, done: isVisited, onClick: handleMarkVisited },
-              { label: 'Share', icon: Share2, onClick: () => navigator.share?.({ title: place.name, text: `Check out ${place.name} on Graze` }) },
             ].map(({ label, icon: Icon, primary, done, onClick }) => (
               <button key={label} onClick={onClick} style={{
                 padding: '9px 0', borderRadius: 10,

@@ -2,8 +2,8 @@
 import { useState, useMemo } from 'react'
 import { useStore } from '@/store'
 import type { GrazeList, Place } from '@/types'
-import { Search, SlidersHorizontal } from 'lucide-react'
-import { grazeScore, priceStr, ratingStars } from '@/lib/utils'
+import { Search, SlidersHorizontal, Download } from 'lucide-react'
+import { grazeScore, priceStr, ratingStars, listToCSV, downloadFile } from '@/lib/utils'
 import { PlaceCard } from './PlaceCard'
 
 const FOOD_PHOTOS = [
@@ -109,6 +109,19 @@ export function ListsView({ list, onImport, onAddPlace, onPlaceClick }: Props) {
         }}>
           {list.name}
         </div>
+
+        {/* Export */}
+        <button
+          onClick={() => downloadFile(`${list.name}.csv`, listToCSV(list), 'text/csv')}
+          title="Export this list as CSV (for Google My Maps)"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
+            background: '#fff', border: '1.5px solid var(--paper3)', borderRadius: 10,
+            fontSize: 12.5, color: 'var(--ink3)', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+          }}
+        >
+          <Download size={13} /> Export
+        </button>
 
         {/* Search */}
         <div style={{

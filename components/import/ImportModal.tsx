@@ -89,8 +89,9 @@ export function ImportModal({ onClose }: Props) {
               <div style={stepsBox}>
                 {[
                   ['1', 'We open Google Takeout for you'],
-                  ['2', 'You click “Create export” — Google emails you a file'],
-                  ['3', 'You drop that file back here — we do the rest'],
+                  ['2', 'Deselect all, then check one box: “Saved”'],
+                  ['3', 'Create export → Google emails you a file'],
+                  ['4', 'Drop that file back here — done'],
                 ].map(([n, t]) => (
                   <div key={n} style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                     <span style={stepNum}>{n}</span>
@@ -111,28 +112,39 @@ export function ImportModal({ onClose }: Props) {
           {/* STEP 2 — TAKEOUT INSTRUCTIONS */}
           {step === 'takeout' && (
             <>
-              <h2 style={title}>On the Google tab…</h2>
-              <p style={sub}>A Google Takeout tab just opened. Do these three things there, then come back.</p>
+              <h2 style={title}>Two taps on the Google tab 👇</h2>
+              <p style={sub}>Google opened a long list and pre-checks <em>everything</em>. Ignore all of it — you only need one thing.</p>
 
-              <div style={stepsBox}>
-                {[
-                  ['1', 'If everything is checked, click “Deselect all”'],
-                  ['2', 'Check only “Saved” and “Maps (your places)”'],
-                  ['3', 'Scroll down, click “Next step”, then “Create export”'],
-                ].map(([n, t]) => (
-                  <div key={n} style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
-                    <span style={stepNum}>{n}</span>
-                    <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{t}</span>
+              {/* Tap 1 */}
+              <div style={tapCard}>
+                <div style={tapHead}><span style={tapBadge}>TAP 1</span> Clear Google’s defaults</div>
+                <div style={mockDeselect}>
+                  <span style={{ fontSize: 13, color: 'var(--ink3)' }}>65 of 65 selected</span>
+                  <span style={mockLink}>Deselect all</span>
+                </div>
+                <div style={tapHint}>Scroll to the very top and hit <strong>Deselect all</strong>. Now nothing is checked. 🎉</div>
+              </div>
+
+              {/* Tap 2 */}
+              <div style={tapCard}>
+                <div style={tapHead}><span style={tapBadge}>TAP 2</span> Check one box: <strong>Saved</strong></div>
+                <div style={mockRow}>
+                  <div style={mockPin}>📍</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Saved</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink4)' }}>Your saved place lists</div>
                   </div>
-                ))}
+                  <div style={mockCheck}>✓</div>
+                </div>
+                <div style={tapHint}>That single box holds all your lists. Skip “Maps”, skip everything else.</div>
               </div>
 
               <div style={noteBox}>
-                Google will email you when the file is ready — usually a minute or two. Download it, then come back and drop it below.
+                Then scroll down → <strong>Next step</strong> → <strong>Create export</strong>. Google emails you a ZIP in a minute or two. Grab it, come back. 🚀
               </div>
 
               <button onClick={() => setStep('drop')} style={primaryBtn}>
-                I’ve downloaded my file <ArrowRight size={15} />
+                Got my file — let’s go <ArrowRight size={15} />
               </button>
               <button onClick={openTakeout} style={textBtn}>
                 Re-open Google Takeout
@@ -282,4 +294,33 @@ const primaryBtn: React.CSSProperties = {
 const textBtn: React.CSSProperties = {
   width: '100%', padding: 4, border: 'none', background: 'none', cursor: 'pointer',
   fontSize: 13, color: 'var(--ink4)', fontFamily: 'inherit',
+}
+const tapCard: React.CSSProperties = {
+  border: '1px solid var(--paper3)', borderRadius: 14, padding: 14, marginBottom: 12,
+}
+const tapHead: React.CSSProperties = {
+  fontSize: 13.5, color: 'var(--ink)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8,
+}
+const tapBadge: React.CSSProperties = {
+  fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+  color: '#fff', background: 'var(--warm)', borderRadius: 6, padding: '3px 7px',
+}
+const tapHint: React.CSSProperties = {
+  fontSize: 11.5, color: 'var(--ink4)', marginTop: 9, lineHeight: 1.5,
+}
+const mockDeselect: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  background: 'var(--paper2)', borderRadius: 9, padding: '9px 12px',
+}
+const mockLink: React.CSSProperties = {
+  fontSize: 13, color: '#1a73e8', fontWeight: 600,
+}
+const mockRow: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 11,
+  background: 'var(--paper2)', borderRadius: 9, padding: '10px 12px',
+}
+const mockPin: React.CSSProperties = { fontSize: 18 }
+const mockCheck: React.CSSProperties = {
+  width: 22, height: 22, borderRadius: 5, background: 'var(--sage)', color: '#fff',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0,
 }
