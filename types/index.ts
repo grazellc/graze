@@ -13,6 +13,7 @@ export interface Place {
   lat?: number
   lng?: number
   googleMapsUrl?: string
+  mapFeatureId?: string
   googlePlaceId?: string
   userNote?: string
   visited: boolean

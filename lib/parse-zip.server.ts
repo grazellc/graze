@@ -2,11 +2,6 @@ import AdmZip from 'adm-zip'
 import type { GrazeList, ImportSource } from '@/types'
 import { parseCSVToPlaces, parseDPGeoJSON, colorForName, detectCity } from './utils'
 
-const SKIP_LISTS = new Set([
-  'default list','screenshots','images','eiffel pics',
-  'china check clothes','airbnb targets',
-])
-
 export async function parseZipBuffer(
   buffer: Buffer,
   source: ImportSource
@@ -31,7 +26,6 @@ export async function parseZipBuffer(
   for (const entry of csvEntries) {
     const filename = entry.name
     const listName = filename.replace(/\.csv$/i, '')
-    if (SKIP_LISTS.has(listName.toLowerCase())) { skipped.push(filename); continue }
     try {
       const content = entry.getData().toString('utf-8')
       const places = parseCSVToPlaces(listName, content, source)

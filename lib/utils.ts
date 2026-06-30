@@ -52,10 +52,16 @@ function parseRow(row: string): string[] {
   return fields
 }
 
-const SKIP_LISTS = new Set([
-  'default list','screenshots','images','eiffel pics',
-  'china check clothes','airbnb targets',
-])
+// Extract Google's embedded feature id (e.g. 0x3be7cf...:0x35eed3...) or cid
+// from a Takeout maps URL. Used later to resolve a Places API place_id.
+export function extractMapFeatureId(url?: string): string | undefined {
+  if (!url) return undefined
+  const m = url.match(/1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)/)
+  if (m) return m[1]
+  const c = url.match(/[?&]cid=(\d+)/)
+  if (c) return 'cid:' + c[1]
+  return undefined
+}
 
 export function parseCSVToPlaces(listName: string, content: string, source: ImportSource): Place[] {
   const lines = splitLines(content)
@@ -79,6 +85,7 @@ export function parseCSVToPlaces(listName: string, content: string, source: Impo
       listId: makeHash(listName),
       name,
       googleMapsUrl: url || undefined,
+      mapFeatureId: extractMapFeatureId(url),
       userNote,
       visited: false,
       enriched: false,
